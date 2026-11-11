@@ -2,6 +2,7 @@ import os
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import pandas as pd
+
 from scrapper import ProfileScraper
 from storage import save_run
 from analytics import (
@@ -11,74 +12,119 @@ from analytics import (
     TARGET_BADGES
 )
 
+# Color Palette Constants
+GOOGLE_BLUE = "#1A73E8"
+GOOGLE_GREEN = "#0F9D58"
+GOOGLE_YELLOW = "#F4B400"
+GOOGLE_RED = "#DB4437"
+DARK_TEXT = "#202124"
+BG_MAIN = "#F8F9FA"
+CARD_BG = "#FFFFFF"
+
+# Priority Badge Colors
+PRIO_COLOR_MAP = {
+    "HIGH (Quick Win)": ("#FEF7E0", "#B06000"),          # Soft Yellow / Amber
+    "HIGH (Broken / Private)": ("#FCE8E6", "#C5221F"),   # Soft Red / Dark Red
+    "MEDIUM (Onboarding Needed)": ("#E8F0FE", "#1A73E8"),# Soft Blue / Blue
+    "MEDIUM (Encouragement Needed)": ("#E8F0FE", "#1A73E8"),
+    "LOW (Completed)": ("#E6F4EA", "#137333")            # Soft Green / Dark Green
+}
+
 class SkillTrackDesktopApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("⚡ SkillTrack — GDG Campaign Tracker (Desktop)")
-        self.geometry("1100x700")  # Exact string formatting without spaces
-        self.minsize(900, 600)
+        self.title("⚡ SkillTrack — GDG Campaign Tracker")
+        self.geometry("1150x750")
+        self.minsize(950, 650)
+        self.configure(bg=BG_MAIN)
 
-        # Application State
         self.raw_df = None
         self.analysis_df = None
         self.csv_path = None
 
+        self._configure_styles()
         self._build_ui()
 
+    def _configure_styles(self):
+        self.style = ttk.Style()
+        self.style.theme_use("clam")
+
+        self.style.configure(".", background=BG_MAIN, font=("Segoe UI", 10))
+
+        # Frames & Cards
+        self.style.configure("TFrame", background=BG_MAIN)
+        self.style.configure("Header.TFrame", background=GOOGLE_BLUE)
+        self.style.configure("Card.TFrame", background=CARD_BG, relief="flat", borderwidth=1)
+        self.style.configure("TLabelframe", background=CARD_BG, bordercolor="#DADCE0", borderwidth=1, padding=12)
+        self.style.configure("TLabelframe.Label", background=CARD_BG, foreground=GOOGLE_BLUE, font=("Segoe UI", 10, "bold"))
+
+        # Button Styles
+        self.style.configure("Primary.TButton", background=GOOGLE_BLUE, foreground="white", font=("Segoe UI", 10, "bold"), borderwidth=0, padding=(14, 7))
+        self.style.map("Primary.TButton", background=[("active", "#1557B0"), ("disabled", "#BDC1C6")])
+
+        self.style.configure("Success.TButton", background=GOOGLE_GREEN, foreground="white", font=("Segoe UI", 10, "bold"), borderwidth=0, padding=(14, 7))
+        self.style.map("Success.TButton", background=[("active", "#0B8043"), ("disabled", "#BDC1C6")])
+
+        self.style.configure("Secondary.TButton", background="#E8EAED", foreground=DARK_TEXT, font=("Segoe UI", 10, "bold"), borderwidth=0, padding=(12, 6))
+        self.style.map("Secondary.TButton", background=[("active", "#D2E3FC")])
+
+        # Notebook Tabs
+        self.style.configure("TNotebook", background=BG_MAIN, borderwidth=0)
+        self.style.configure("TNotebook.Tab", background="#E8EAED", foreground=DARK_TEXT, font=("Segoe UI", 10, "bold"), padding=(16, 9))
+        self.style.map("TNotebook.Tab", background=[("selected", CARD_BG), ("active", "#D2E3FC")], foreground=[("selected", GOOGLE_BLUE)])
+
+        # Data Tables
+        self.style.configure("Treeview", background=CARD_BG, fieldbackground=CARD_BG, foreground=DARK_TEXT, rowheight=30, font=("Segoe UI", 9))
+        self.style.configure("Treeview.Heading", background="#E8F0FE", foreground=GOOGLE_BLUE, font=("Segoe UI", 9, "bold"), padding=8)
+        self.style.map("Treeview", background=[("selected", "#D2E3FC")], foreground=[("selected", GOOGLE_BLUE)])
+
+        # Progressbar
+        self.style.configure("TProgressbar", thickness=6, troughcolor="#E8EAED", background=GOOGLE_GREEN)
+
     def _build_ui(self):
-        # --- Top Header & File Controls ---
-        top_bar = ttk.Frame(self, padding=10)
+        # --- Top Vibrant Header Bar ---
+        top_bar = ttk.Frame(self, style="Header.TFrame", padding=15)
         top_bar.pack(side=tk.TOP, fill=tk.X)
 
-        title_label = ttk.Label(
-            top_bar, 
-            text="⚡ SkillTrack Desktop", 
-            font=("Helvetica", 16, "bold")
-        )
-        title_label.pack(side=tk.LEFT, padx=(0, 20))
+        title_label = tk.Label(top_bar, text="⚡ SkillTrack", font=("Segoe UI", 18, "bold"), bg=GOOGLE_BLUE, fg="white")
+        title_label.pack(side=tk.LEFT, padx=(5, 5))
 
-        self.btn_load_csv = ttk.Button(top_bar, text="📁 Load CSV File", command=self.load_csv)
+        subtitle_label = tk.Label(top_bar, text="GDG Campaign Manager", font=("Segoe UI", 10, "italic"), bg=GOOGLE_BLUE, fg="#D2E3FC")
+        subtitle_label.pack(side=tk.LEFT, padx=(0, 20))
+
+        self.btn_load_csv = ttk.Button(top_bar, text="📁 Load CSV File", style="Secondary.TButton", command=self.load_csv)
         self.btn_load_csv.pack(side=tk.LEFT, padx=5)
 
-        self.btn_run_verification = ttk.Button(
-            top_bar, text="▶ Run Verification", command=self.run_verification, state=tk.DISABLED
-        )
+        self.btn_run_verification = ttk.Button(top_bar, text="▶ Run Verification", style="Success.TButton", command=self.run_verification, state=tk.DISABLED)
         self.btn_run_verification.pack(side=tk.LEFT, padx=5)
 
-        self.btn_export_csv = ttk.Button(
-            top_bar, text="📥 Export Report CSV", command=self.export_csv, state=tk.DISABLED
-        )
+        self.btn_export_csv = ttk.Button(top_bar, text="📥 Export CSV Report", style="Secondary.TButton", command=self.export_csv, state=tk.DISABLED)
         self.btn_export_csv.pack(side=tk.RIGHT, padx=5)
 
-        self.status_label = ttk.Label(top_bar, text="Please load a candidate CSV file to begin.", font=("Helvetica", 10, "italic"))
+        self.status_label = tk.Label(top_bar, text="Please load a candidate CSV file to begin.", font=("Segoe UI", 10, "italic"), bg=GOOGLE_BLUE, fg="#E8F0FE")
         self.status_label.pack(side=tk.LEFT, padx=15)
 
-        # --- Progress Bar ---
-        self.progress = ttk.Progressbar(self, orient=tk.HORIZONTAL, mode='determinate')
-        self.progress.pack(fill=tk.X, padx=10, pady=(0, 5))
+        # Smooth Progress Bar
+        self.progress = ttk.Progressbar(self, orient=tk.HORIZONTAL, mode='determinate', style="TProgressbar")
+        self.progress.pack(fill=tk.X)
 
-        # --- Tab Navigation Control ---
+        # Tab Navigation Bar
         self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
-        # Tab 1: Overview & Health Summary
-        self.tab_overview = ttk.Frame(self.notebook, padding=10)
+        self.tab_overview = ttk.Frame(self.notebook, padding=15)
         self.notebook.add(self.tab_overview, text="📊 Summary & Health")
 
-        # Tab 2: Smart Action & Outreach Priority
-        self.tab_action = ttk.Frame(self.notebook, padding=10)
+        self.tab_action = ttk.Frame(self.notebook, padding=15)
         self.notebook.add(self.tab_action, text="🎯 Outreach Priority")
 
-        # Tab 3: Copy-Paste Broadcast Templates
-        self.tab_templates = ttk.Frame(self.notebook, padding=10)
+        self.tab_templates = ttk.Frame(self.notebook, padding=15)
         self.notebook.add(self.tab_templates, text="📢 Broadcast Templates")
 
-        # Tab 4: Badge Gap Analyzer
-        self.tab_gap = ttk.Frame(self.notebook, padding=10)
+        self.tab_gap = ttk.Frame(self.notebook, padding=15)
         self.notebook.add(self.tab_gap, text="🔍 Badge Gap Analyzer")
 
-        # Tab 5: Full Data View
-        self.tab_full_data = ttk.Frame(self.notebook, padding=10)
+        self.tab_full_data = ttk.Frame(self.notebook, padding=15)
         self.notebook.add(self.tab_full_data, text="📑 Full Data View")
 
         self._setup_overview_tab()
@@ -88,38 +134,62 @@ class SkillTrackDesktopApp(tk.Tk):
         self._setup_full_data_tab()
 
     def _setup_overview_tab(self):
-        # Health Callout Box
-        self.health_frame = ttk.LabelFrame(self.tab_overview, text=" Campaign Health Status ", padding=10)
-        self.health_frame.pack(fill=tk.X, pady=(0, 10))
+        # Health Callout Banner
+        self.health_card = tk.Frame(self.tab_overview, bg=CARD_BG, highlightbackground="#DADCE0", highlightthickness=1, padx=15, pady=12)
+        self.health_card.pack(fill=tk.X, pady=(0, 15))
 
-        self.lbl_health_status = ttk.Label(self.health_frame, text="Status: Waiting for verification run...", font=("Helvetica", 11, "bold"))
+        self.lbl_health_status = tk.Label(
+            self.health_card, 
+            text="Status: Waiting for profile verification run...", 
+            font=("Segoe UI", 11, "bold"),
+            bg=CARD_BG,
+            fg=GOOGLE_BLUE
+        )
         self.lbl_health_status.pack(anchor="w")
 
-        # Metrics Box
-        self.metrics_frame = ttk.LabelFrame(self.tab_overview, text=" Performance Metrics ", padding=10)
-        self.metrics_frame.pack(fill=tk.X, pady=(0, 10))
+        # Color-Coded Metric Cards Container
+        self.metrics_container = tk.Frame(self.tab_overview, bg=BG_MAIN)
+        self.metrics_container.pack(fill=tk.X, pady=(0, 15))
 
-        self.lbl_metric_total = ttk.Label(self.metrics_frame, text="Total Participants: -", font=("Helvetica", 11, "bold"))
-        self.lbl_metric_total.grid(row=0, column=0, padx=15, pady=5, sticky="w")
+        self.card_total = self._create_metric_card(self.metrics_container, "TOTAL PARTICIPANTS", "-", GOOGLE_BLUE)
+        self.card_total.grid(row=0, column=0, padx=(0, 10), sticky="ew")
 
-        self.lbl_metric_verified = ttk.Label(self.metrics_frame, text="Verified Profiles: -", font=("Helvetica", 11))
-        self.lbl_metric_verified.grid(row=0, column=1, padx=15, pady=5, sticky="w")
+        self.card_verified = self._create_metric_card(self.metrics_container, "VERIFIED PROFILES", "-", DARK_TEXT)
+        self.card_verified.grid(row=0, column=1, padx=10, sticky="ew")
 
-        self.lbl_metric_completed = ttk.Label(self.metrics_frame, text="Completed (10/10): -", font=("Helvetica", 11))
-        self.lbl_metric_completed.grid(row=0, column=2, padx=15, pady=5, sticky="w")
+        self.card_completed = self._create_metric_card(self.metrics_container, "COMPLETED (10/10)", "-", GOOGLE_GREEN)
+        self.card_completed.grid(row=0, column=2, padx=10, sticky="ew")
 
-        self.lbl_metric_almost = ttk.Label(self.metrics_frame, text="Almost Completed (8-9): -", font=("Helvetica", 11))
-        self.lbl_metric_almost.grid(row=0, column=3, padx=15, pady=5, sticky="w")
+        self.card_almost = self._create_metric_card(self.metrics_container, "ALMOST DONE (8-9)", "-", GOOGLE_YELLOW)
+        self.card_almost.grid(row=0, column=3, padx=(10, 0), sticky="ew")
+
+        self.metrics_container.grid_columnconfigure(0, weight=1)
+        self.metrics_container.grid_columnconfigure(1, weight=1)
+        self.metrics_container.grid_columnconfigure(2, weight=1)
+        self.metrics_container.grid_columnconfigure(3, weight=1)
+
+    def _create_metric_card(self, parent, title, val_text, accent_color):
+        card = tk.Frame(parent, bg=CARD_BG, highlightbackground="#DADCE0", highlightthickness=1, padx=15, pady=12)
+        
+        lbl_title = tk.Label(card, text=title, font=("Segoe UI", 9, "bold"), bg=CARD_BG, fg="#5F6368")
+        lbl_title.pack(anchor="w")
+
+        lbl_val = tk.Label(card, text=val_text, font=("Segoe UI", 18, "bold"), bg=CARD_BG, fg=accent_color)
+        lbl_val.pack(anchor="w", pady=(5, 0))
+        
+        card.lbl_val = lbl_val
+        return card
 
     def _setup_action_tab(self):
         filter_frame = ttk.Frame(self.tab_action)
-        filter_frame.pack(fill=tk.X, pady=(0, 5))
+        filter_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(filter_frame, text="Filter Priority: ").pack(side=tk.LEFT)
+        ttk.Label(filter_frame, text="Filter Priority Queue: ", font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT)
         self.combo_action_filter = ttk.Combobox(
             filter_frame, 
             values=["All", "HIGH (Quick Win)", "HIGH (Broken / Private)", "MEDIUM (Onboarding Needed)", "MEDIUM (Encouragement Needed)", "LOW (Completed)"],
-            state="readonly"
+            state="readonly",
+            width=30
         )
         self.combo_action_filter.set("All")
         self.combo_action_filter.pack(side=tk.LEFT, padx=5)
@@ -131,7 +201,17 @@ class SkillTrackDesktopApp(tk.Tk):
         )
 
     def _setup_templates_tab(self):
-        self.txt_templates = tk.Text(self.tab_templates, wrap=tk.WORD, font=("Consolas", 10))
+        self.txt_templates = tk.Text(
+            self.tab_templates, 
+            wrap=tk.WORD, 
+            font=("Consolas", 10),
+            bg="#FFFFFF",
+            fg=DARK_TEXT,
+            bd=1,
+            relief="solid",
+            padx=15,
+            pady=15
+        )
         vsb = ttk.Scrollbar(self.tab_templates, orient="vertical", command=self.txt_templates.yview)
         self.txt_templates.configure(yscrollcommand=vsb.set)
 
@@ -140,13 +220,14 @@ class SkillTrackDesktopApp(tk.Tk):
 
     def _setup_gap_tab(self):
         gap_filter_frame = ttk.Frame(self.tab_gap)
-        gap_filter_frame.pack(fill=tk.X, pady=(0, 5))
+        gap_filter_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(gap_filter_frame, text="Remaining Badges Filter: ").pack(side=tk.LEFT)
+        ttk.Label(gap_filter_frame, text="Remaining Badges Filter: ", font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT)
         self.combo_gap_filter = ttk.Combobox(
             gap_filter_frame, 
             values=["All (1-10)", "1 Badge Remaining (9/10)", "2 Badges Remaining (8/10)", "3+ Badges Remaining"],
-            state="readonly"
+            state="readonly",
+            width=30
         )
         self.combo_gap_filter.set("All (1-10)")
         self.combo_gap_filter.pack(side=tk.LEFT, padx=5)
@@ -167,10 +248,18 @@ class SkillTrackDesktopApp(tk.Tk):
         frame = ttk.Frame(parent)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tree = ttk.Treeview(frame, columns=columns, show="headings")
+        tree = ttk.Treeview(frame, columns=columns, show="headings", selectmode="browse")
         for col in columns:
             tree.heading(col, text=col)
-            tree.column(col, width=150, anchor="w")
+            tree.column(col, width=160, anchor="w")
+
+        # Alternating Grid Row Colors
+        tree.tag_configure("even", background="#FFFFFF")
+        tree.tag_configure("odd", background="#F8F9FA")
+
+        # Configure Priority Color Tags
+        for prio_name, (bg_color, fg_color) in PRIO_COLOR_MAP.items():
+            tree.tag_configure(prio_name, background=bg_color, foreground=fg_color)
 
         vsb = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
         hsb = ttk.Scrollbar(frame, orient="horizontal", command=tree.xview)
@@ -220,19 +309,19 @@ class SkillTrackDesktopApp(tk.Tk):
         raw_results = []
 
         for idx, url in enumerate(urls, start=1):
-            self.status_label.config(text=f"Verifying ({idx}/{len(urls)}): {url[:45]}...")
+            self.status_label.config(text=f"Verifying ({idx}/{len(urls)}): {url[:40]}...")
             self.update_idletasks()
             
             res = scraper.fetch_profile(url)
             raw_results.append(res)
             self.progress["value"] = idx
 
-        save_run(raw_results)  # Persist batch run into SQLite database
+        save_run(raw_results)
         self.analysis_df = process_results_dataframe(raw_results)
         
         self._update_dashboards()
         self.btn_export_csv.config(state=tk.NORMAL)
-        self.status_label.config(text="✓ Verification complete! Results updated.")
+        self.status_label.config(text="✓ Verification complete! All views updated.")
         messagebox.showinfo("Success", "Profile verification completed successfully!")
 
     def _update_dashboards(self):
@@ -240,29 +329,30 @@ class SkillTrackDesktopApp(tk.Tk):
         if df is None:
             return
 
-        # 1. Health & Overview Metrics
+        # 1. Update Health & Metric Cards
         health = calculate_campaign_health(df)
         self.lbl_health_status.config(text=f"Health Score: {health['health_score']}%  |  {health['health_status']}")
 
-        self.lbl_metric_total.config(text=f"Total Participants: {health['total']}")
-        self.lbl_metric_verified.config(text=f"Verified Profiles: {len(df[df['Verification Status'] == 'Verified'])}")
-        self.lbl_metric_completed.config(text=f"Completed (10/10): {health['completed']}")
-        self.lbl_metric_almost.config(text=f"Almost Completed (8-9): {health['almost']}")
+        self.card_total.lbl_val.config(text=str(health['total']))
+        self.card_verified.lbl_val.config(text=str(len(df[df['Verification Status'] == 'Verified'])))
+        self.card_completed.lbl_val.config(text=str(health['completed']))
+        self.card_almost.lbl_val.config(text=str(health['almost']))
 
-        # 2. Update Broadcast Templates Tab
+        # 2. Update Broadcast Templates
         templates = generate_outreach_templates(df)
         self.txt_templates.delete("1.0", tk.END)
-        self.txt_templates.insert(tk.END, "=== BROADCAST REMINDER TEMPLATES ===\n\n")
+        self.txt_templates.insert(tk.END, "=== GDG BROADCAST INTERVENTION TEMPLATES ===\n\n")
         for name, text in templates.items():
-            self.txt_templates.insert(tk.END, f"[{name}]\n{text}\n\n" + "-"*60 + "\n\n")
+            self.txt_templates.insert(tk.END, f"📌 [{name}]\n{text}\n\n" + "-"*65 + "\n\n")
 
-        # 3. Populate Action & Gap Tables
+        # 3. Populate Tables with Priority Color Pill Tags
         self._filter_action_table()
         self._filter_gap_table()
 
-        # 4. Populate Full Data View Table
         self.tree_full.delete(*self.tree_full.get_children())
-        for _, row in df.iterrows():
+        for idx, (_, row) in enumerate(df.iterrows()):
+            prio = row["Outreach Priority"]
+            tag = prio if prio in PRIO_COLOR_MAP else ("even" if idx % 2 == 0 else "odd")
             self.tree_full.insert("", tk.END, values=(
                 row["Google Skills Profile URL"],
                 row["Verification Status"],
@@ -270,7 +360,7 @@ class SkillTrackDesktopApp(tk.Tk):
                 row["Badges Remaining"],
                 row["Outreach Priority"],
                 row["Campaign Status"]
-            ))
+            ), tags=(tag,))
 
     def _filter_action_table(self, event=None):
         if self.analysis_df is None:
@@ -281,14 +371,16 @@ class SkillTrackDesktopApp(tk.Tk):
         filtered_df = df if priority == "All" else df[df["Outreach Priority"] == priority]
 
         self.tree_action.delete(*self.tree_action.get_children())
-        for _, row in filtered_df.iterrows():
+        for idx, (_, row) in enumerate(filtered_df.iterrows()):
+            prio = row["Outreach Priority"]
+            tag = prio if prio in PRIO_COLOR_MAP else ("even" if idx % 2 == 0 else "odd")
             self.tree_action.insert("", tk.END, values=(
                 row["Google Skills Profile URL"],
                 row["Outreach Priority"],
                 row["Verification Status"],
                 row["Badges Earned"],
                 row["Recommended Action"]
-            ))
+            ), tags=(tag,))
 
     def _filter_gap_table(self, event=None):
         if self.analysis_df is None:
@@ -308,14 +400,16 @@ class SkillTrackDesktopApp(tk.Tk):
             filtered_df = df
 
         self.tree_gap.delete(*self.tree_gap.get_children())
-        for _, row in filtered_df.iterrows():
+        for idx, (_, row) in enumerate(filtered_df.iterrows()):
+            prio = row["Outreach Priority"]
+            tag = prio if prio in PRIO_COLOR_MAP else ("even" if idx % 2 == 0 else "odd")
             self.tree_gap.insert("", tk.END, values=(
                 row["Google Skills Profile URL"],
                 row["Outreach Priority"],
                 row["Badges Earned"],
                 int(row["Badges Remaining"]),
                 row["Campaign Status"]
-            ))
+            ), tags=(tag,))
 
     def export_csv(self):
         if self.analysis_df is None:
