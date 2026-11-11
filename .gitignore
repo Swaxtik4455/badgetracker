@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.db
+skilltrack_history.db
+*campaign_report*.csv
+venv/
+.venv/
+.DS_Store
