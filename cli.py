@@ -1,5 +1,6 @@
 import argparse
 import sys
+import os
 import pandas as pd
 from scrapper import ProfileScraper
 from storage import save_run
@@ -8,6 +9,8 @@ from analytics import (
     calculate_campaign_health, 
     generate_outreach_templates
 )
+
+MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB Limit
 
 def print_summary(df: pd.DataFrame):
     health = calculate_campaign_health(df)
@@ -52,6 +55,20 @@ def main():
     parser.add_argument("--priority", help="Filter display by priority (e.g. 'HIGH', 'MEDIUM', 'LOW')")
     
     args = parser.parse_args()
+
+    # File Existence & Extension Check
+    if not os.path.exists(args.csv_path):
+        print(f"Error: File '{args.csv_path}' not found.")
+        sys.exit(1)
+
+    if not args.csv_path.lower().endswith(".csv"):
+        print("Error: Input file must be a .csv file.")
+        sys.exit(1)
+
+    # File Size Guardrail Check
+    if os.path.getsize(args.csv_path) > MAX_FILE_SIZE_BYTES:
+        print("Error: Input CSV file size exceeds safety limit of 5 MB.")
+        sys.exit(1)
 
     try:
         df_raw = pd.read_csv(args.csv_path)

@@ -23,12 +23,14 @@ CARD_BG = "#FFFFFF"
 
 # Priority Badge Colors
 PRIO_COLOR_MAP = {
-    "HIGH (Quick Win)": ("#FEF7E0", "#B06000"),          # Soft Yellow / Amber
-    "HIGH (Broken / Private)": ("#FCE8E6", "#C5221F"),   # Soft Red / Dark Red
-    "MEDIUM (Onboarding Needed)": ("#E8F0FE", "#1A73E8"),# Soft Blue / Blue
+    "HIGH (Quick Win)": ("#FEF7E0", "#B06000"),
+    "HIGH (Broken / Private)": ("#FCE8E6", "#C5221F"),
+    "MEDIUM (Onboarding Needed)": ("#E8F0FE", "#1A73E8"),
     "MEDIUM (Encouragement Needed)": ("#E8F0FE", "#1A73E8"),
-    "LOW (Completed)": ("#E6F4EA", "#137333")            # Soft Green / Dark Green
+    "LOW (Completed)": ("#E6F4EA", "#137333")
 }
+
+MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB Limit
 
 class SkillTrackDesktopApp(tk.Tk):
     def __init__(self):
@@ -51,14 +53,12 @@ class SkillTrackDesktopApp(tk.Tk):
 
         self.style.configure(".", background=BG_MAIN, font=("Segoe UI", 10))
 
-        # Frames & Cards
         self.style.configure("TFrame", background=BG_MAIN)
         self.style.configure("Header.TFrame", background=GOOGLE_BLUE)
         self.style.configure("Card.TFrame", background=CARD_BG, relief="flat", borderwidth=1)
         self.style.configure("TLabelframe", background=CARD_BG, bordercolor="#DADCE0", borderwidth=1, padding=12)
         self.style.configure("TLabelframe.Label", background=CARD_BG, foreground=GOOGLE_BLUE, font=("Segoe UI", 10, "bold"))
 
-        # Button Styles
         self.style.configure("Primary.TButton", background=GOOGLE_BLUE, foreground="white", font=("Segoe UI", 10, "bold"), borderwidth=0, padding=(14, 7))
         self.style.map("Primary.TButton", background=[("active", "#1557B0"), ("disabled", "#BDC1C6")])
 
@@ -68,21 +68,17 @@ class SkillTrackDesktopApp(tk.Tk):
         self.style.configure("Secondary.TButton", background="#E8EAED", foreground=DARK_TEXT, font=("Segoe UI", 10, "bold"), borderwidth=0, padding=(12, 6))
         self.style.map("Secondary.TButton", background=[("active", "#D2E3FC")])
 
-        # Notebook Tabs
         self.style.configure("TNotebook", background=BG_MAIN, borderwidth=0)
         self.style.configure("TNotebook.Tab", background="#E8EAED", foreground=DARK_TEXT, font=("Segoe UI", 10, "bold"), padding=(16, 9))
         self.style.map("TNotebook.Tab", background=[("selected", CARD_BG), ("active", "#D2E3FC")], foreground=[("selected", GOOGLE_BLUE)])
 
-        # Data Tables
         self.style.configure("Treeview", background=CARD_BG, fieldbackground=CARD_BG, foreground=DARK_TEXT, rowheight=30, font=("Segoe UI", 9))
         self.style.configure("Treeview.Heading", background="#E8F0FE", foreground=GOOGLE_BLUE, font=("Segoe UI", 9, "bold"), padding=8)
         self.style.map("Treeview", background=[("selected", "#D2E3FC")], foreground=[("selected", GOOGLE_BLUE)])
 
-        # Progressbar
         self.style.configure("TProgressbar", thickness=6, troughcolor="#E8EAED", background=GOOGLE_GREEN)
 
     def _build_ui(self):
-        # --- Top Vibrant Header Bar ---
         top_bar = ttk.Frame(self, style="Header.TFrame", padding=15)
         top_bar.pack(side=tk.TOP, fill=tk.X)
 
@@ -104,11 +100,9 @@ class SkillTrackDesktopApp(tk.Tk):
         self.status_label = tk.Label(top_bar, text="Please load a candidate CSV file to begin.", font=("Segoe UI", 10, "italic"), bg=GOOGLE_BLUE, fg="#E8F0FE")
         self.status_label.pack(side=tk.LEFT, padx=15)
 
-        # Smooth Progress Bar
         self.progress = ttk.Progressbar(self, orient=tk.HORIZONTAL, mode='determinate', style="TProgressbar")
         self.progress.pack(fill=tk.X)
 
-        # Tab Navigation Bar
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
@@ -134,7 +128,6 @@ class SkillTrackDesktopApp(tk.Tk):
         self._setup_full_data_tab()
 
     def _setup_overview_tab(self):
-        # Health Callout Banner
         self.health_card = tk.Frame(self.tab_overview, bg=CARD_BG, highlightbackground="#DADCE0", highlightthickness=1, padx=15, pady=12)
         self.health_card.pack(fill=tk.X, pady=(0, 15))
 
@@ -147,7 +140,6 @@ class SkillTrackDesktopApp(tk.Tk):
         )
         self.lbl_health_status.pack(anchor="w")
 
-        # Color-Coded Metric Cards Container
         self.metrics_container = tk.Frame(self.tab_overview, bg=BG_MAIN)
         self.metrics_container.pack(fill=tk.X, pady=(0, 15))
 
@@ -253,11 +245,9 @@ class SkillTrackDesktopApp(tk.Tk):
             tree.heading(col, text=col)
             tree.column(col, width=160, anchor="w")
 
-        # Alternating Grid Row Colors
         tree.tag_configure("even", background="#FFFFFF")
         tree.tag_configure("odd", background="#F8F9FA")
 
-        # Configure Priority Color Tags
         for prio_name, (bg_color, fg_color) in PRIO_COLOR_MAP.items():
             tree.tag_configure(prio_name, background=bg_color, foreground=fg_color)
 
@@ -277,6 +267,15 @@ class SkillTrackDesktopApp(tk.Tk):
     def load_csv(self):
         file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
         if not file_path:
+            return
+
+        # Security Check: Extension & File Size
+        if not file_path.lower().endswith(".csv"):
+            messagebox.showerror("Invalid File", "Only .csv files are supported.")
+            return
+
+        if os.path.getsize(file_path) > MAX_FILE_SIZE_BYTES:
+            messagebox.showerror("File Too Large", "CSV file size exceeds maximum limit of 5 MB.")
             return
 
         try:
@@ -329,7 +328,6 @@ class SkillTrackDesktopApp(tk.Tk):
         if df is None:
             return
 
-        # 1. Update Health & Metric Cards
         health = calculate_campaign_health(df)
         self.lbl_health_status.config(text=f"Health Score: {health['health_score']}%  |  {health['health_status']}")
 
@@ -338,14 +336,12 @@ class SkillTrackDesktopApp(tk.Tk):
         self.card_completed.lbl_val.config(text=str(health['completed']))
         self.card_almost.lbl_val.config(text=str(health['almost']))
 
-        # 2. Update Broadcast Templates
         templates = generate_outreach_templates(df)
         self.txt_templates.delete("1.0", tk.END)
         self.txt_templates.insert(tk.END, "=== GDG BROADCAST INTERVENTION TEMPLATES ===\n\n")
         for name, text in templates.items():
             self.txt_templates.insert(tk.END, f"📌 [{name}]\n{text}\n\n" + "-"*65 + "\n\n")
 
-        # 3. Populate Tables with Priority Color Pill Tags
         self._filter_action_table()
         self._filter_gap_table()
 

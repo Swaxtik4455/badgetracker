@@ -10,6 +10,8 @@ from analytics import (
     TARGET_BADGES
 )
 
+MAX_FILE_SIZE_MB = 5
+
 st.set_page_config(
     page_title="SkillTrack | GDG Campaign Manager",
     page_icon="⚡",
@@ -25,6 +27,15 @@ uploaded_file = st.sidebar.file_uploader("Upload Profile CSV", type=["csv"])
 recheck_btn = st.sidebar.button("Run Profile Verification")
 
 if uploaded_file is not None:
+    # Security Validation: Extension & File Size
+    if not uploaded_file.name.lower().endswith(".csv"):
+        st.error("Invalid format: Only .csv files are supported.")
+        st.stop()
+        
+    if uploaded_file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+        st.error(f"File size exceeds safety limit of {MAX_FILE_SIZE_MB}MB.")
+        st.stop()
+
     try:
         df_raw = pd.read_csv(uploaded_file)
     except Exception as e:
@@ -62,11 +73,10 @@ if uploaded_file is not None:
             "📑 Report Generator"
         ])
 
-        # TAB 1: OVERVIEW DASHBOARD (Features Health Score)
+        # TAB 1: OVERVIEW DASHBOARD
         with tab1:
             st.subheader("Campaign Performance & Health Overview")
             
-            # Health Score Callout Box
             st.info(f"**Campaign Health Score:** {health_info['health_score']}% — Status: **{health_info['health_status']}**")
 
             c1, c2, c3, c4, c5 = st.columns(5)
@@ -120,7 +130,7 @@ if uploaded_file is not None:
                 use_container_width=True
             )
 
-        # TAB 3: BROADCAST TEMPLATES (New Feature 2)
+        # TAB 3: BROADCAST TEMPLATES
         with tab3:
             st.subheader("📢 Copy-Paste Intervention Templates")
             st.markdown("Pre-calculated messaging templates ready to send to student groups.")
